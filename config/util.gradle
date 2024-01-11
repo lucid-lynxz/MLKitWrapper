@@ -1,0 +1,107 @@
+import java.security.MessageDigest
+
+rootProject.ext.updateLocalProperty = { String keyName, Object value ->
+    println("updateLocalProperty with: $keyName=$value")
+    rootProject.ext.updatePropertiesFile(rootProject.file("local.properties").absolutePath, keyName, value)
+}
+
+rootProject.ext.updatePropertiesFile = { String filePath, String keyName, Object value ->
+    def comment = null
+    println("updateFile with: $keyName=$value, path=$filePath")
+    File file = new File(filePath)
+    File parentDir = file.getParentFile()
+    if (!parentDir.exists()) {
+        parentDir.mkdirs()
+    }
+
+    if (!file.exists()) {
+        file.createNewFile()
+    }
+    if (keyName == null || keyName.length() == 0) {
+        println("指定文件或者属性 $keyName 不存在,设置属性失败")
+        return
+    }
+
+    InputStream inputStream = file.newDataInputStream()
+    Properties properties = new Properties()
+    properties.load(inputStream)
+
+    properties.setProperty(keyName, "$value")
+    properties.store(file.newWriter(), comment)
+}
+/**
+ * 从根目录下的 local.properties 中提取指定的属性,若无则返回默认值
+ */
+rootProject.ext.getLocalProperty = { String keyName, Object defaultValue ->
+    File file = rootProject.file("local.properties")
+    if (!file.exists() || keyName == null || keyName.length() == 0) {
+        // print("指定文件(local.properties)或者属性 $keyName 不存在")
+        return defaultValue
+    }
+
+    InputStream inputStream = file.newDataInputStream()
+    Properties properties = new Properties()
+    properties.load(inputStream)
+
+    def localKeys = properties.keys()
+    for (String propertyName : localKeys) {
+        if (keyName != propertyName) {
+            continue
+        }
+        def localPropertyValue = properties.getProperty(keyName)
+        if (defaultValue instanceof Integer) {
+            return Integer.parseInt(localPropertyValue)
+        } else if (defaultValue instanceof Long) {
+            return Long.parseLong(localPropertyValue)
+        } else if (defaultValue instanceof Float) {
+            return Float.parseFloat(localPropertyValue)
+        } else if (defaultValue instanceof Double) {
+            return Double.parseDouble(localPropertyValue)
+        } else if (defaultValue instanceof Boolean) {
+            return Boolean.parseBoolean(localPropertyValue)
+        } else if (defaultValue instanceof String) {
+            if (localPropertyValue.isEmpty()) {
+                return defaultValue
+            }
+            return localPropertyValue
+        } else {
+            println("未知类型属性$propertyName,请检查后重试")
+        }
+    }
+    // println("获取 $keyName 失败,返回默认值: $defaultValue")
+    return defaultValue
+}
+
+rootProject.ext.getFileMD5 = { String filePath ->
+    FileInputStream fileStream = null
+    try {
+        fileStream = new FileInputStream(filePath)
+        MessageDigest md5 = MessageDigest.getInstance("MD5")
+        byte[] buffer = new byte[1024]
+        int length
+        while ((length = fileStream.read(buffer)) != -1) {
+            md5.update(buffer, 0, length)
+        }
+        byte[] md5Bytes = md5.digest()
+        StringBuilder hexValue = new StringBuilder()
+        for (byte md5Byte : md5Bytes) {
+            int val = (md5Byte) & 0xff
+            if (val < 16) {
+                hexValue.append("0")
+            }
+            hexValue.append(Integer.toHexString(val))
+        }
+        return hexValue.toString()
+    } catch (Exception ignored) {
+        return null
+    } finally {
+        try {
+            if (fileStream != null) {
+                fileStream.close()
+            }
+        } catch (IOException e) {
+            e.printStackTrace()
+        }
+    }
+}
+

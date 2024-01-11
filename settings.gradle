@@ -1,0 +1,4 @@
+rootProject.name = "MLKitWrapper"
+include ':app'
+include ':textdetector'
+include ':base'
