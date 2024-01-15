@@ -64,8 +64,10 @@ dependencies {
     if (use_remote_lib) {
         implementation "com.github.lucid-lynxz.MLKitWrapper:base:$lib_version"
         implementation "com.github.lucid-lynxz.MLKitWrapper:textdetector:$lib_version"
+        implementation "com.github.lucid-lynxz.MLKitWrapper:objectdetector:$lib_version"
     } else {
         implementation project(':base')
         implementation project(path: ':textdetector')
+        implementation project(path: ':objectdetector')
     }
 }

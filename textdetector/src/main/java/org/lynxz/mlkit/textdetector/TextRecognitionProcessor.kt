@@ -17,20 +17,16 @@
 package org.lynxz.mlkit.textdetector
 
 import android.content.Context
-import android.graphics.Bitmap
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.TextRecognizer
 import com.google.mlkit.vision.text.TextRecognizerOptionsInterface
-import org.lynxz.mlkit.base.OnTaskListener
 import org.lynxz.mlkit.base.VisionProcessorBase
 import org.lynxz.mlkit.base.ui.GraphicOverlay
 import org.lynxz.mlkit.base.util.LogWrapper
 import org.lynxz.mlkit.base.util.PreferenceUtils
-import java.lang.ref.WeakReference
-import java.util.Collections
 
 /** Processor for the text detector demo. */
 class TextRecognitionProcessor(
@@ -42,24 +38,10 @@ class TextRecognitionProcessor(
         PreferenceUtils.shouldGroupRecognizedTextInBlocks(context)
     private val showLanguageTag: Boolean = PreferenceUtils.showLanguageTag(context)
     private val showConfidence: Boolean = PreferenceUtils.shouldShowTextConfidence(context)
-    private var onTaskListenerMap =
-        Collections.synchronizedMap(mutableMapOf<Int, WeakReference<OnTaskListener<Text>>>())
 
     override fun stop() {
         super.stop()
         textRecognizer.close()
-        onTaskListenerMap.clear()
-    }
-
-    fun processBitmap(
-        bitmap: Bitmap?, graphicOverlay: GraphicOverlay?,
-        onTaskListener: OnTaskListener<Text>? = null
-    ): Int {
-        val taskId = super.processBitmap(bitmap, graphicOverlay)
-        if (onTaskListener != null) {
-            onTaskListenerMap[taskId] = WeakReference(onTaskListener)
-        }
-        return taskId
     }
 
     override fun detectInImage(image: InputImage): Task<Text> {
@@ -67,6 +49,7 @@ class TextRecognitionProcessor(
     }
 
     override fun onSuccess(taskId: Int, results: Text, graphicOverlay: GraphicOverlay?) {
+        super.onSuccess(taskId, results, graphicOverlay)
         LogWrapper.d(TAG, "$taskId On-device Text detection successful text=${results.text}")
         logExtrasForTesting(results)
         graphicOverlay?.add(
@@ -78,18 +61,6 @@ class TextRecognitionProcessor(
                 showConfidence
             )
         )
-        onTaskListenerMap[taskId]?.get()?.apply {
-            onSuccess(taskId, results)
-            onTaskListenerMap.remove(taskId)
-        }
-    }
-
-    override fun onFailure(taskId: Int, e: Exception) {
-        LogWrapper.w(TAG, "$taskId Text detection failed.$e")
-        onTaskListenerMap[taskId]?.get()?.apply {
-            onFailure(taskId, e)
-            onTaskListenerMap.remove(taskId)
-        }
     }
 
     companion object {

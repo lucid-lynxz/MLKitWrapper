@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import org.lynxz.mlkit.base.OnTaskListener
+import org.lynxz.mlkit.base.ui.GraphicOverlay
 import org.lynxz.mlkit.base.util.LogWrapper
 
 class TextRecognitionUtil(private val context: Context) {
@@ -27,6 +28,8 @@ class TextRecognitionUtil(private val context: Context) {
      */
     fun detectInImage(
         bitmap: Bitmap,
+        processor: TextRecognitionProcessor? = imageProcessor,
+        graphicOverlay: GraphicOverlay? = null,
         onTaskListener: OnTaskListener<Text>? = null
-    ): Int = imageProcessor?.processBitmap(bitmap, null, onTaskListener) ?: -1
+    ): Int = processor?.processBitmap(bitmap, graphicOverlay, onTaskListener) ?: -1
 }

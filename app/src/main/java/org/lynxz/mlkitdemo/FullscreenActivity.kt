@@ -9,9 +9,12 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import com.google.mlkit.vision.objects.DetectedObject
 import com.google.mlkit.vision.text.Text
 import org.lynxz.mlkit.base.OnTaskListener
+import org.lynxz.mlkit.base.util.FileUtils
 import org.lynxz.mlkit.base.util.LogWrapper
+import org.lynxz.mlkit.objectdetector.ObjectDetectionUtil
 import org.lynxz.mlkit.textdetector.TextRecognitionUtil
 import org.lynxz.mlkitdemo.databinding.ActivityFullscreenBinding
 
@@ -26,6 +29,16 @@ class FullscreenActivity : AppCompatActivity() {
     private lateinit var fullscreenContent: TextView
     private lateinit var fullscreenContentControls: LinearLayout
     private val hideHandler = Handler()
+
+    private val sdPath by lazy { "${this.applicationContext.getExternalFilesDir(null)}/" }
+    private val textRecognitionUtil by lazy { TextRecognitionUtil(this).apply { init(BuildConfig.DEBUG) } }
+    private val objectDetectorUtil by lazy {
+        ObjectDetectionUtil(
+            this,
+            customTFilePath = "custom_models/object_labeler.tflite"
+        )
+    }
+
 
     @SuppressLint("InlinedApi")
     private val hidePart2Runnable = Runnable {
@@ -60,48 +73,74 @@ class FullscreenActivity : AppCompatActivity() {
         when (motionEvent.action) {
             MotionEvent.ACTION_DOWN -> if (AUTO_HIDE) {
                 delayedHide(AUTO_HIDE_DELAY_MILLIS)
-                for (i in 0..5) {
-                    val taskId1 = textRecognitionUtil.detectInImage(
-                        BitmapFactory.decodeStream(assets.open("img_text.png")),
-                        onTaskListener = object : OnTaskListener<Text> {
-                            override fun onSuccess(taskId: Int, result: Text) {
-                                LogWrapper.d(
-                                    TAG,
-                                    "$taskId detectInImage img_text.png result=${result.text}"
-                                )
-                            }
+                val taskId1 = textRecognitionUtil.detectInImage(
+                    BitmapFactory.decodeStream(assets.open("img_text.png")),
+                    onTaskListener = object : OnTaskListener<Text> {
+                        override fun onSuccess(taskId: Int, result: Text) {
+                            LogWrapper.d(
+                                TAG,
+                                "$taskId detectInImage img_text.png result=${result.text}"
+                            )
+                        }
 
-                            override fun onFailure(taskId: Int, e: Exception) {
-                                super.onFailure(taskId, e)
-                                LogWrapper.e(
-                                    TAG,
-                                    "$taskId detectInImage img_text.png exception=${e.message}"
-                                )
-                            }
-                        })
-                    LogWrapper.d(TAG, "start detectInImage img_text.png taskId=$taskId1")
+                        override fun onFailure(taskId: Int, e: Exception) {
+                            super.onFailure(taskId, e)
+                            LogWrapper.e(
+                                TAG,
+                                "$taskId detectInImage img_text.png exception=${e.message}"
+                            )
+                        }
+                    })
+                LogWrapper.d(TAG, "start detectInImage img_text.png taskId=$taskId1")
 
 
-                    val taskId2 = textRecognitionUtil.detectInImage(
-                        BitmapFactory.decodeStream(assets.open("img_text_light.png")),
-                        onTaskListener = object : OnTaskListener<Text> {
-                            override fun onSuccess(taskId: Int, result: Text) {
-                                LogWrapper.d(
-                                    TAG,
-                                    "$taskId detectInImage img_text_light.png result=${result.text}"
-                                )
-                            }
+                val taskId2 = textRecognitionUtil.detectInImage(
+                    BitmapFactory.decodeStream(assets.open("img_text_light.png")),
+                    onTaskListener = object : OnTaskListener<Text> {
+                        override fun onSuccess(taskId: Int, result: Text) {
+                            LogWrapper.d(
+                                TAG,
+                                "$taskId detectInImage img_text_light.png result=${result.text}"
+                            )
+                        }
 
-                            override fun onFailure(taskId: Int, e: Exception) {
-                                super.onFailure(taskId, e)
-                                LogWrapper.e(
-                                    TAG,
-                                    "$taskId detectInImage img_text.png exception=${e.message}"
-                                )
-                            }
-                        })
-                    LogWrapper.d(TAG, "start detectInImage img_text_light.png taskId=$taskId2")
-                }
+                        override fun onFailure(taskId: Int, e: Exception) {
+                            super.onFailure(taskId, e)
+                            LogWrapper.e(
+                                TAG,
+                                "$taskId detectInImage img_text.png exception=${e.message}"
+                            )
+                        }
+                    })
+                LogWrapper.d(TAG, "start detectInImage img_text_light.png taskId=$taskId2")
+
+
+                val srcBitmap = BitmapFactory.decodeStream(
+                    assets.open("cat_dog.jpg"),
+                )
+                objectDetectorUtil.detectInImage(
+                    srcBitmap, true,
+                    onTaskListener = object : OnTaskListener<List<DetectedObject>> {
+                        override fun onSuccess(taskId: Int, result: List<DetectedObject>) {
+                            val rectBitmap = objectDetectorUtil.drawWithRectangle(srcBitmap, result)
+                            FileUtils.saveImage(rectBitmap, "${sdPath}cat_dog_rect.png")
+                            LogWrapper.d(
+                                TAG,
+                                "$taskId detectInImage cat_dog.jpg result=${result}"
+                            )
+
+                            // objectDetectorUtil.drawWithLabels(srcBitmap, result)
+                        }
+
+                        override fun onFailure(taskId: Int, e: Exception) {
+                            super.onFailure(taskId, e)
+                            LogWrapper.e(
+                                TAG,
+                                "$taskId detectInImage cat_dog.jpg exception=${e.message}"
+                            )
+                        }
+                    }
+                )
             }
 
             MotionEvent.ACTION_UP -> view.performClick()
@@ -110,8 +149,6 @@ class FullscreenActivity : AppCompatActivity() {
         }
         false
     }
-
-    private val textRecognitionUtil by lazy { TextRecognitionUtil(this).apply { init(BuildConfig.DEBUG) } }
 
     @SuppressLint("ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -208,5 +245,6 @@ class FullscreenActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         textRecognitionUtil.uninit()
+        objectDetectorUtil.uninit()
     }
 }

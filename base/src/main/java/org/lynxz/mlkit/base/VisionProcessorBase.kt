@@ -39,7 +39,9 @@ import org.lynxz.mlkit.base.ui.InferenceInfoGraphic
 import org.lynxz.mlkit.base.util.BitmapUtils
 import org.lynxz.mlkit.base.util.LogWrapper
 import org.lynxz.mlkit.base.util.PreferenceUtils
+import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
+import java.util.Collections
 import java.util.Timer
 import java.util.TimerTask
 import java.util.concurrent.atomic.AtomicInteger
@@ -57,6 +59,9 @@ abstract class VisionProcessorBase<T>(private val context: Context) : VisionImag
         const val MANUAL_TESTING_LOG = "LogTagForTest"
         private const val TAG = "VisionProcessorBase"
     }
+
+    private var onTaskListenerMap =
+        Collections.synchronizedMap(mutableMapOf<Int, WeakReference<OnTaskListener<T>>>())
 
     private var activityManager: ActivityManager =
         context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -108,10 +113,23 @@ abstract class VisionProcessorBase<T>(private val context: Context) : VisionImag
 
     private val taskId = AtomicInteger(0)
 
+    fun nextTaskId() = taskId.incrementAndGet()
+
+    open fun processBitmap(
+        bitmap: Bitmap?, graphicOverlay: GraphicOverlay?,
+        onTaskListener: OnTaskListener<T>? = null
+    ): Int {
+        val taskId = processBitmap(bitmap, graphicOverlay)
+        if (onTaskListener != null) {
+            onTaskListenerMap[taskId] = WeakReference(onTaskListener)
+        }
+        return taskId
+    }
+
     // -----------------Code for processing single still image----------------------------------------
     override fun processBitmap(bitmap: Bitmap?, graphicOverlay: GraphicOverlay?): Int {
         val frameStartMs = SystemClock.elapsedRealtime()
-        val id = taskId.incrementAndGet()
+        val id = nextTaskId()
 
         if (isMlImageEnabled(context)) {
             val mlImage = BitmapMlImageBuilder(bitmap!!).build()
@@ -168,7 +186,7 @@ abstract class VisionProcessorBase<T>(private val context: Context) : VisionImag
         frameMetadata: FrameMetadata,
         graphicOverlay: GraphicOverlay
     ) {
-        val id = taskId.incrementAndGet()
+        val id = nextTaskId()
         val frameStartMs = SystemClock.elapsedRealtime()
         // If live viewport is on (that is the underneath surface view takes care of the camera preview
         // drawing), skip the unnecessary bitmap creation that used for the manual preview drawing.
@@ -219,7 +237,7 @@ abstract class VisionProcessorBase<T>(private val context: Context) : VisionImag
     // -----------------Code for processing live preview frame from CameraX API-----------------------
     @ExperimentalGetImage
     override fun processImageProxy(image: ImageProxy, graphicOverlay: GraphicOverlay) {
-        val id = taskId.incrementAndGet()
+        val id = nextTaskId()
         val frameStartMs = SystemClock.elapsedRealtime()
         if (isShutdown) {
             return
@@ -378,6 +396,7 @@ abstract class VisionProcessorBase<T>(private val context: Context) : VisionImag
         isShutdown = true
         resetLatencyStats()
         fpsTimer.cancel()
+        onTaskListenerMap.clear()
     }
 
     private fun resetLatencyStats() {
@@ -420,9 +439,20 @@ abstract class VisionProcessorBase<T>(private val context: Context) : VisionImag
         )
     }
 
-    protected abstract fun onSuccess(taskId: Int, results: T, graphicOverlay: GraphicOverlay?)
+    protected open fun onSuccess(taskId: Int, results: T, graphicOverlay: GraphicOverlay?) {
+        onTaskListenerMap[taskId]?.get()?.apply {
+            onSuccess(taskId, results)
+            onTaskListenerMap.remove(taskId)
+        }
+    }
 
-    protected abstract fun onFailure(taskId: Int, e: Exception)
+    protected open fun onFailure(taskId: Int, e: Exception) {
+        LogWrapper.w(TAG, "$taskId detection failed.$e")
+        onTaskListenerMap[taskId]?.get()?.apply {
+            onFailure(taskId, e)
+            onTaskListenerMap.remove(taskId)
+        }
+    }
 
     protected open fun isMlImageEnabled(context: Context?): Boolean {
         return false

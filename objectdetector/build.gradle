@@ -1,0 +1,77 @@
+plugins {
+    id 'com.android.library'
+    id 'kotlin-android'
+    id 'maven-publish'
+}
+
+android {
+    compileSdkVersion 34
+    buildToolsVersion "30.0.3"
+
+    defaultConfig {
+        minSdkVersion 21
+        //noinspection ExpiredTargetSdkVersion
+        targetSdkVersion 30
+        versionCode lib_version_code
+        versionName lib_version
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    compileOnly project(':base')
+
+    // Object detection feature with bundled default classifier
+    api 'com.google.mlkit:object-detection:17.0.0'
+
+    // Object detection feature with custom classifier support
+    api 'com.google.mlkit:object-detection-custom:17.0.0'
+
+//    // Image labeling
+//    api 'com.google.mlkit:image-labeling:17.0.7'
+//    // Or comment the dependency above and uncomment the dependency below to
+//    // use unbundled model that depends on Google Play Services
+//    // implementation 'com.google.android.gms:play-services-mlkit-image-labeling:16.0.8'
+
+    // Image labeling custom
+//    api 'com.google.mlkit:image-labeling-custom:17.0.2'
+    // Or comment the dependency above and uncomment the dependency below to
+    // use unbundled model that depends on Google Play Services
+    // implementation 'com.google.android.gms:play-services-mlkit-image-labeling-custom:16.0.0-beta5'
+}
+
+tasks.register('sourcesJar', Jar) {
+    classifier = 'sources'
+    from android.sourceSets.main.java.srcDirs
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+//                artifact(tasks.getByName('bundleReleaseAar'))
+//                artifact(tasks.getByName('sourcesJar'))
+                groupId = 'org.lynxz.MLKitWrapper'
+                artifactId = 'objectdetector'
+                version = lib_version
+            }
+        }
+    }
+}
