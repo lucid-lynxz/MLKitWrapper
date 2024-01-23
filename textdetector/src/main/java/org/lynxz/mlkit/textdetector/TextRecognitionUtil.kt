@@ -26,6 +26,7 @@ class TextRecognitionUtil(private val context: Context) {
     /**
      * 对图片进行文字识别, 支持中文英文
      */
+    @JvmOverloads
     fun detectInImage(
         bitmap: Bitmap,
         processor: TextRecognitionProcessor? = imageProcessor,

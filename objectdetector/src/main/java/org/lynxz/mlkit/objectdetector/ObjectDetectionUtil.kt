@@ -21,6 +21,39 @@ class ObjectDetectionUtil(
 ) {
     companion object {
         private const val TAG = "ObjectDetectionUtil"
+
+        /**
+         * @param localTFilePath 本地 tffile 文件瑞景
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun generateObjectProcessor(
+            context: Context,
+            localTFilePath: String,
+            @DetectorMode mode: Int = CustomObjectDetectorOptions.SINGLE_IMAGE_MODE,
+            enableMultipleObjects: Boolean = true,
+            enableClassification: Boolean = true
+        ): ObjectDetectorProcessor {
+            val localModel = if (localTFilePath.startsWith("/")) {
+                LocalModel.Builder().setAbsoluteFilePath(localTFilePath).build()
+            } else {
+                LocalModel.Builder().setAssetFilePath(localTFilePath).build()
+            }
+
+            val builder = CustomObjectDetectorOptions
+                .Builder(localModel)
+                .setDetectorMode(mode).apply {
+                    if (enableMultipleObjects) {
+                        enableMultipleObjects()
+                    }
+
+                    if (enableClassification) {
+                        enableClassification().setMaxPerObjectLabelCount(1)
+                    }
+                }
+                .build()
+            return ObjectDetectorProcessor(context, builder)
+        }
     }
 
     private val defaultObjectProcessor by lazy {
@@ -41,25 +74,13 @@ class ObjectDetectionUtil(
     }
 
     private val customObjectProcessor by lazy {
-        val localModel = if (customTFilePath.startsWith("/")) {
-            LocalModel.Builder().setAbsoluteFilePath(customTFilePath).build()
-        } else {
-            LocalModel.Builder().setAssetFilePath(customTFilePath).build()
-        }
-
-        val builder = CustomObjectDetectorOptions
-            .Builder(localModel)
-            .setDetectorMode(mode).apply {
-                if (enableMultipleObjects) {
-                    enableMultipleObjects()
-                }
-
-                if (enableClassification) {
-                    enableClassification().setMaxPerObjectLabelCount(1)
-                }
-            }
-            .build()
-        ObjectDetectorProcessor(context, builder)
+        generateObjectProcessor(
+            context,
+            customTFilePath,
+            mode,
+            enableMultipleObjects,
+            enableClassification
+        )
     }
 
     /**
