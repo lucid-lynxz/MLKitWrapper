@@ -5,7 +5,7 @@ plugins {
 apply from: "../config/sign.gradle"
 
 android {
-    compileSdkVersion 34
+    compileSdkVersion 30
     buildToolsVersion "30.0.3"
 
     defaultConfig {

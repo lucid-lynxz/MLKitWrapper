@@ -2,7 +2,7 @@
 buildscript {
     ext.kotlin_version = "1.6.10"
     ext.lib_version_code = 1
-    ext.lib_version = "1.0.1"
+    ext.lib_version = "1.0.2"
     ext.use_remote_lib = false
 //    ext.use_remote_lib = true
 
